@@ -1,0 +1,46 @@
+name: signaldesk-example
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: signaldesk
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: signaldesk
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:55440:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signaldesk -d signaldesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+  signaldesk:
+    build:
+      context: ..
+      dockerfile: example-build/Dockerfile
+    command: ["-local-container", "-demo"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - workspace-config:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres-data:
+  workspace-config:

@@ -1,0 +1,10 @@
+.git
+node_modules
+.local
+bin
+.env*
+deploy
+web/dist
+scripts/browser-check.mjs
+README.md
+*.tfstate*

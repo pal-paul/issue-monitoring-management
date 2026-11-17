@@ -1,0 +1,4 @@
+{
+  "subscription": "projects/example-project/subscriptions/monitoring-alerts",
+  "enabled": false
+}

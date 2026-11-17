@@ -1,0 +1,6 @@
+{
+  "databaseUrl": "postgres://signaldesk:local-development-only@postgres:5432/signaldesk?sslmode=disable",
+  "username": "YOUR_ADMIN_USERNAME",
+  "name": "Your administrator name",
+  "password": "REPLACE_WITH_A_UNIQUE_PRIVATE_PASSWORD"
+}

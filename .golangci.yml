@@ -1,0 +1,82 @@
+version: "2"
+run:
+  timeout: 5m
+  tests: true
+
+formatters:
+  # Enable specific formatter.
+  # Default: [] (uses standard Go formatting)
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    gofumpt:
+      module-path: signaldesk
+
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - unused
+
+  exclusions:
+    # Mode of the generated files analysis.
+    generated: lax
+    # Log a warning if an exclusion rule is unused.
+    # Default: false
+    warn-unused: true
+    # Predefined exclusion rules.
+    # Default: []
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    # Excluding configuration per-path, per-linter, per-text and per-source.
+    rules:
+      # Exclude mock files and directories
+      - path: mock/.*\.go
+        linters:
+          - all
+      - path: mocks/.*\.go
+        linters:
+          - all
+      - path: mock_.*\.go
+        linters:
+          - all
+      # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - goconst
+      # Run some linter only for test files by excluding its issues for everything else.
+      - path-except: _test\.go
+        linters:
+          - forbidigo
+      # Go struct tags cannot be split across lines without changing their values.
+      - path: pkg/moderator/struct\.go
+        linters:
+          - lll
+      - path: ^apps/(auth|pkg/auth|pkg/ecd)/structs\.go$
+        linters:
+          - lll
+      # Exclude `lll` issues for long lines with `go:generate`.
+      - linters:
+          - lll
+        source: "^//go:generate "

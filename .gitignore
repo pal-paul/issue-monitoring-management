@@ -1,0 +1,16 @@
+node_modules/
+bin/
+.local/
+.env
+.env.*
+!.env.example
+web/dist/*
+!web/dist/README.txt
+!web/dist/.gitkeep
+deploy/.terraform/
+deploy/*.tfstate*
+deploy/*.tfplan
+deploy/terraform.tfvars
+playwright-report/
+test-results/
+.DS_Store

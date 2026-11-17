@@ -1,0 +1,106 @@
+name: Test and Publish Container
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: signaldesk
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: signaldesk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U signaldesk -d signaldesk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://signaldesk:ci-only-password@127.0.0.1:5432/signaldesk?sslmode=disable
+    steps:
+      - name: Check Out Source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set Up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: true
+      - name: Vet and Test With PostgreSQL
+        run: |
+          go vet ./...
+          go test -race ./... -count=1
+
+  container:
+    name: Build and Publish Image
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check Out Source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Image Tags and Labels
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/pal-paul/issue-monitoring-management
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Log In to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Container
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: example-build/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+      - name: Published Image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_TAGS: ${{ steps.metadata.outputs.tags }}
+        run: |
+          printf '## Published Container\n\n    %s\n\nDigest: %s\n' "$IMAGE_TAGS" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
